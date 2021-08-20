@@ -118,7 +118,7 @@ module Rack
         additional_headers = @options[:headers] || {}
         case self.rule_type
         when :r301
-          log(env, "[301] Redirecting from #{self.from.inspect} to #{interpreted_to}")
+          log(env, "[301] Redirecting from #{@from.inspect} to #{interpreted_to}")
           [301, {'Location' => interpreted_to, 'Content-Type' => Rack::Mime.mime_type(::File.extname(interpreted_to))}.merge!(additional_headers), [redirect_message(interpreted_to)]]
         when :r302
           log(env, "[302] Redirecting from #{self.from.inspect} to #{interpreted_to}")
