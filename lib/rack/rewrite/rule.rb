@@ -118,8 +118,10 @@ module Rack
         additional_headers = @options[:headers] || {}
         case self.rule_type
         when :r301
+          log(env, "[301] Redirecting from #{self.from.inspect} to #{interpreted_to}")
           [301, {'Location' => interpreted_to, 'Content-Type' => Rack::Mime.mime_type(::File.extname(interpreted_to))}.merge!(additional_headers), [redirect_message(interpreted_to)]]
         when :r302
+          log(env, "[302] Redirecting from #{self.from.inspect} to #{interpreted_to}")
           [302, {'Location' => interpreted_to, 'Content-Type' => Rack::Mime.mime_type(::File.extname(interpreted_to))}.merge!(additional_headers), [redirect_message(interpreted_to)]]
         when :r303
           [303, {'Location' => interpreted_to, 'Content-Type' => Rack::Mime.mime_type(::File.extname(interpreted_to))}.merge!(additional_headers), [redirect_message(interpreted_to)]]
@@ -127,6 +129,7 @@ module Rack
           [307, {'Location' => interpreted_to, 'Content-Type' => Rack::Mime.mime_type(::File.extname(interpreted_to))}.merge!(additional_headers), [redirect_message(interpreted_to)]]
         when :rewrite
           # return [200, {}, {:content => env.inspect}]
+          log(env, "[200] Rewriting from #{self.from.inspect} to #{interpreted_to}")
           env['REQUEST_URI'] = interpreted_to
           if q_index = interpreted_to.index('?')
             env['PATH_INFO'] = interpreted_to[0..q_index-1]
@@ -137,11 +140,13 @@ module Rack
           end
           true
         when :send_file
+          log(env, "[200] Send File from #{self.from.inspect} to #{interpreted_to}")
           [200, {
             'Content-Length' => ::File.size(interpreted_to).to_s,
             'Content-Type'   => Rack::Mime.mime_type(::File.extname(interpreted_to))
             }.merge!(additional_headers), [::File.read(interpreted_to)]]
         when :x_send_file
+          log(env, "[200] X-Sendfile from #{self.from.inspect} to #{interpreted_to}")
           [200, {
             'X-Sendfile'     => interpreted_to,
             'Content-Length' => ::File.size(interpreted_to).to_s,
@@ -184,7 +189,16 @@ module Rack
           options.symbolize_keys! if options.respond_to? :symbolize_keys!
           options.freeze
         end
-      
+
+        def log(env, message)
+          message = "[INFO] rack-rewrite: #{message}"
+          if env['rack.logger']
+            env['rack.logger'].info(message) #this is the right way but rails doesn't impliment this
+          else
+            env['rack.errors'].write("#{message}\n")
+          end
+        end
+
         def interpret_to_proc(path, env)
           return self.to.call(match(path), env) if self.from.is_a?(Regexp)
           self.to.call(self.from, env)
